@@ -28,13 +28,26 @@ public class Ingestion {
     private static final int CHUNK_SIZE = 1200;     
     private static final int CHUNK_OVERLAP = 180;   
 
-    public Ingestion(EmbeddingStore<TextSegment> store, EmbeddingModel embedding) {
-        logger.info("
-         Započinjem OPTIMIZOVANI ingestion proces...");
+    public Ingestion(EmbeddingStore<TextSegment> store, EmbeddingModel embedding, BM25SearchEngine bm25Engine) {
+        logger.info("Započinjem HYBRID ingestion proces (Embeddings + BM25)...");
         long startTime = System.currentTimeMillis();
 
-
         DocumentSplitter semanticSplitter = recursive(CHUNK_SIZE, CHUNK_OVERLAP);
+
+        Path dir = Path.of("src/main/resources/documents");
+        ApacheTikaDocumentParser parser = new ApacheTikaDocumentParser();
+        List<Document> documents = FileSystemDocumentLoader.loadDocuments(dir, parser);
+
+        logger.infof("Učitano %d dokumenata iz %s", documents.size(), dir);
+        logger.infof("Chunk parametri: size=%d chars (~%d tokena), overlap=%d chars (%.1f%%)",
+                    CHUNK_SIZE, CHUNK_SIZE/4, CHUNK_OVERLAP, (CHUNK_OVERLAP*100.0/CHUNK_SIZE));
+
+        List<TextSegment> allSegments = new java.util.ArrayList<>();
+        for (Document doc : documents) {
+            allSegments.addAll(semanticSplitter.split(doc));
+        }
+
+        logger.infof("Napravljeno %d chunks", allSegments.size());
 
         EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
                 .embeddingStore(store)
@@ -42,20 +55,14 @@ public class Ingestion {
                 .documentSplitter(semanticSplitter)
                 .build();
 
-
-        Path dir = Path.of("src/main/resources/documents");
-        ApacheTikaDocumentParser parser = new ApacheTikaDocumentParser();
-        List<Document> documents = FileSystemDocumentLoader.loadDocuments(dir, parser);
-
-        logger.infof(" Ucitano %d dokumenata iz %s", documents.size(), dir);
-        logger.infof("  Chunk parametri: size=%d chars (~%d tokena), overlap=%d chars (%.1f%%)",
-                    CHUNK_SIZE, CHUNK_SIZE/4, CHUNK_OVERLAP, (CHUNK_OVERLAP*100.0/CHUNK_SIZE));
-
-
         ingestor.ingest(documents);
+        logger.info("Semantic embeddings kreirani");
+
+        bm25Engine.indexSegments(allSegments);
+        logger.info("BM25 index kreiran");
 
         long duration = System.currentTimeMillis() - startTime;
-        logger.infof(" Ingestion zavrsen za %.2f sekundi!", duration/1000.0);
-        logger.info(" Vektorska baza spremna za semantic search!");
+        logger.infof("HYBRID ingestion završen za %.2f sekundi!", duration/1000.0);
+        logger.info("Sistem spreman: BM25 (keyword) + Embeddings (semantic)");
     }
 }

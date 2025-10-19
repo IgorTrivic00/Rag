@@ -22,22 +22,20 @@ public class Retriever implements Supplier<RetrievalAugmentor> {
 
     private final DefaultRetrievalAugmentor augmentor;
 
-    public Retriever(EmbeddingStore<TextSegment> store, EmbeddingModel embeddingModel) {
-        logger.info(" Inicijalizujem ULTIMATE RAG Pipeline...");
-
-        ChunkLogger chunkLogger = new ChunkLogger(store, embeddingModel, MAX_RESULTS, MIN_SCORE);
+    public Retriever(HybridContentRetriever hybridRetriever) {
+        logger.info("Inicijalizujem HYBRID RAG Pipeline (BM25 + Semantic)...");
 
         augmentor = DefaultRetrievalAugmentor
                 .builder()
-                .contentRetriever(chunkLogger)
+                .contentRetriever(hybridRetriever)
                 .build();
 
-        logger.infof(" ULTIMATE RAG Pipeline konfigurisan:");
-        logger.infof("    Embedding: Snowflake Arctic 768-dim");
-        logger.infof("   Retrieval: top %d, minScore %.2f (maksimalna preciznost)",
-                    MAX_RESULTS, MIN_SCORE);
-        logger.infof("    LLM: Granite 3.3:8b (RAG-optimized)");
-        logger.infof("    Chunks: 1200 chars (~300 tokena)");
+        logger.infof("HYBRID RAG Pipeline konfigurisan:");
+        logger.infof(" BM25: Keyword search (40%% weight)");
+        logger.infof("Semantic: Embedding search (60%% weight)");
+        logger.infof("Model: AllMiniLM-L6-v2 (384-dim)");
+        logger.infof("LLM: claude-sonnet-4-20250514");
+        logger.infof("Chunks: 1200 chars (~300 tokena)");
     }
 
     @Override

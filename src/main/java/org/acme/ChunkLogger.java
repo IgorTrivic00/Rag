@@ -50,7 +50,6 @@ public class ChunkLogger implements ContentRetriever {
     public List<Content> retrieve(Query query) {
         List<Content> contents = delegate.retrieve(query);
 
-        // Logiraj u fajl
         try (PrintWriter writer = new PrintWriter(new FileWriter(LOG_FILE, true))) {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
@@ -83,7 +82,6 @@ public class ChunkLogger implements ContentRetriever {
             logger.errorf("Greska pri pisanju u %s: %s", LOG_FILE, e.getMessage());
         }
 
-        // Logiraj i u konzolu (kratko)
         logger.infof(" Izvuceno %d chunks za pitanje: '%s'", contents.size(), query.text());
         logger.infof("   ↳ Logovi zapisani u: %s", LOG_FILE);
 
